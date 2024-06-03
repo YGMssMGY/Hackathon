@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>General Relativity Visualization</title>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script src="three.js"></script>
+    <script>
+        // Scene setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Light
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(5, 10, 7.5).normalize();
+        scene.add(light);
+
+        // Sphere to represent a massive object (like a star)
+        const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
+        const sphereMaterial = new THREE.MeshLambertMaterial({ color: 0xff0000 });
+        const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+        scene.add(sphere);
+
+        // Plane to represent the fabric of spacetime
+        const planeGeometry = new THREE.PlaneGeometry(20, 20, 50, 50);
+        const planeMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
+        const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+        plane.rotation.x = -Math.PI / 2;
+        scene.add(plane);
+
+        var smallSphere = new THREE.Mesh(
+        new THREE.SphereGeometry(0.5, 10, 10),
+        new THREE.MeshBasicMaterial({ color: 0xff0000 })
+        );
+        smallSphere.position.set(5, 0, 0);
+        scene.add(smallSphere);
+        
+        function calculateGravitationalForce(object1, object2, gravitationalConstant) {
+        var distance = object1.position.distanceTo(object2.position);
+        var force = gravitationalConstant * (object1.geometry.parameters.radius * object2.geometry.parameters.radius) / (distance * distance);
+        var forceDirection = new THREE.Vector3().subVectors(object1.position, object2.position).normalize();
+        return forceDirection.multiplyScalar(force);
+        }
+    
+        // Function to distort the plane geometry based on sphere size
+        function distortPlaneBasedOnSphere() {
+            const positionAttribute = planeGeometry.attributes.position;
+            const sphereRadius = sphere.geometry.parameters.radius;
+
+            for (let i = 0; i < positionAttribute.count; i++) {
+                const vertex = new THREE.Vector3().fromBufferAttribute(positionAttribute, i);
+                const distance = Math.sqrt(vertex.x * vertex.x + vertex.y * vertex.y);
+                const distortion = Math.exp(-distance * 0.3 / (sphereRadius));
+                vertex.z = distortion * sphereRadius;
+                positionAttribute.setXYZ(i, vertex.x, vertex.y, vertex.z);
+            }
+            positionAttribute.needsUpdate = true;
+        }
+
+        // Initial plane distortion
+        distortPlaneBasedOnSphere();
+
+        // Move camera back to see the scene
+        camera.position.set(0, -5, 20);
+        camera.up.set(0, -1, 0);
+        camera.lookAt(0, 0, 0);
+
+        // Render loop
+        function animate() {
+            requestAnimationFrame(animate);
+            // Calculate gravitational force and apply to smaller sphere
+            var gravitationalForce = calculateGravitationalForce(sphere, smallSphere, 0.01);
+            smallSphere.position.add(gravitationalForce);
+
+            // Update plane distortion
+            distortPlaneBasedOnSphere();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Example of changing the sphere size and updating the plane distortion
+        function changeSphereSize(newSize) {
+            sphere.geometry.dispose();
+            sphere.geometry = new THREE.SphereGeometry(newSize, 10, 10);
+            distortPlaneBasedOnSphere();
+        }
+        changeSphereSize(1.5 + Math.sin(0.01 * Date.now()) * 0.5)   // Example of changing sphere size over time;
+        
+    </script>
+</body>
+</html>
